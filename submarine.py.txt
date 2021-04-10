@@ -1,0 +1,450 @@
+import sys
+import math
+from random import random
+from random import randrange
+
+
+cells = []
+enemy_moves = []
+
+
+# Download shant:
+
+song_line = 0
+shant = [...]
+
+
+def check_sector(x, y):
+    if y > 0 and x > 0:
+        return (math.floor(int(y)/5)*3) + math.floor(int(x)/5) + 1
+    else:
+        return 0, 0
+
+
+def get_cell_id(x, y):
+    x = str(x).zfill(2)
+    y = str(y).zfill(2)
+    cell_id = y + x
+    return cell_id
+
+
+def get_key(val):
+    for key, value in cell.items():
+         if val == value:
+             return key
+
+
+def get_cell(x, y):
+    for cell in cells:
+        for value in cell:
+            if x == cell.get(value) and y == cell.get(value):
+                return cell
+
+
+def get_prev(order, Ex, Ey):
+    if order == "N":
+        Ex = Ex
+        Ey = Ey + 1
+    elif order == "S":
+        Ex = Ex
+        Ey = Ey - 1
+    elif order == "E":
+        Ex = Ex - 1
+        Ey = Ey
+    elif order == "W":
+        Ex = Ex + 1
+        Ey = Ey
+    else:
+        pass
+    return Ex, Ey
+
+
+def get_next(order, Ex, Ey):
+    if order == "N":
+        Ex = Ex
+        Ey = Ey - 1
+    elif order == "S":
+        Ex = Ex
+        Ey = Ey + 1
+    elif order == "E":
+        Ex = Ex + 1
+        Ey = Ey
+    elif order == "W":
+        Ex = Ex - 1
+        Ey = Ey
+    else:
+        pass
+    return Ex, Ey
+
+
+def scan_heading(heading, scan_range, x, y):
+    safe_dist = 14
+    scan = []
+    bad_sqares = []
+
+    for i in range(1, scan_range, 1):
+        if heading == "N":
+            Sx = x
+            Sy = y-i
+        elif heading == "S":
+            Sx = x
+            Sy = y+i
+        elif heading == "E":
+            Sx = x+i
+            Sy = y
+        elif heading == "W":
+            Sx = x-i
+            Sy = y
+        scan.append([Sx, Sy])
+
+    for cell in cells:
+        if cell.get("no_go") or cell.get("my_path"):
+            bad_sqares.append(cell.get("coords"))
+        else:
+
+            for sqare in scan:
+                if sqare in bad_sqares:
+                    break
+                else:
+                    safe_dist = safe_dist + 1
+
+            return heading, safe_dist + 1
+
+
+def get_prob():
+    targets = []
+    dead_pool = []
+    prob = 0
+    for cell in cells:
+        if cell.get("enemy_pos") == True:
+            targets.append(cell.get("cell_id"))
+        if cell.get("no_go") == False:
+            dead_pool.append(cell.get("cell_id"))
+    if len(dead_pool) > 0 and len(targets) > 0:
+        prob = (len(dead_pool) - len(targets)) * 100 / len(dead_pool)
+        return prob
+    else:
+        return 0
+
+
+def firing_range(x, y, Ex, Ey):
+    return abs(x - Ex) + abs(y - Ey)
+        
+
+
+# Here we go!
+
+width, height, my_id = [int(i) for i in input().split()]
+
+
+# BUILd matrix dictionary:
+
+for y in range(width):
+    raw = list(input())
+    for x, cell in enumerate(raw):
+        if cell == "x":
+            update = True
+        else:
+            update = False
+
+        cell = {
+            "cell_id":          get_cell_id(y, x),
+            "sector":           check_sector(x, y),
+            "column":           x,
+            "row":              y,
+            "coords":           [x, y],
+            "land":             False,
+            "no_go":            False,
+            "my_pos":           False,
+            "my_path":          False,
+            "my_mine":          False,
+            "enemy_mine":       False,
+            "enemy_pos":        True,
+            "prob":             get_prob()
+        }
+
+        # Map islands:
+
+        if update == True:
+            cell.update(land = True)
+            cell.update(no_go = True)
+            cell.update(enemy_origin = False)
+
+        cells.append(cell)
+
+
+# Map borders:
+
+for i in range(16):
+    borders = [[i, -1], [i, 15], [-1, i], [15, i]]
+    for x, y in borders:
+        cell = {
+            "cell_id":          get_cell_id(x+15, y+15),
+            "cell_sector":      0,
+            "column":           x,
+            "row":              y,
+            "coords":           [x, y],
+            "no_go":            True,
+            "enemy_pos":        False
+        }
+        cells.append(cell)
+
+
+# Choose spawn:
+
+spawn = "0 0"
+x = randrange(15)
+y = randrange(15)
+
+for cell in cells:
+    if [x, y] == cell.get("coords") and cell.get("no_go") == True:
+        print("BAD LUCK:", [x, y], " ROLL AGAIN!", file=sys.stderr)
+    elif [x, y] == cell.get("coords") and cell.get("no_go") == False:
+        spawn = str(x) + " " + str(y)
+
+print(spawn)
+
+
+# Random heading:
+
+compass = ["N", "W", "S", "E"]
+direction = compass[randrange(4)]
+
+
+# Game loop:
+
+while True:
+    x, y, my_life, opp_life, torpedo_cooldown, sonar_cooldown, silence_cooldown, mine_cooldown = [int(i) for i in input().split()]
+    sonar_result = input()
+    opponent_orders = input()
+
+
+    lyrics = shant[song_line]
+    if song_line == 51:
+        song_line = 0
+    else:
+        song_line = int(song_line) + 1
+
+
+    # Reset commands:
+
+    command = "MOVE"
+    MSG = "| MSG ..."
+
+
+    # Update current cell:
+
+    for cell in cells:
+        if [x, y] == cell.get("coords"):
+            cell.update(my_pos = True)
+            cell.update(my_path = True)
+        else:
+            cell.update(my_pos = False)
+
+
+    # Charging:
+
+    if torpedo_cooldown != 0:
+        charge = "TORPEDO"
+    elif silence_cooldown != 0:
+        charge = "SILENCE"
+    elif sonar_cooldown != 0:
+        charge = "SONAR"
+
+
+    # # Maping enemy movements:
+
+    if len(opponent_orders.split()) > 1:
+        current_order = opponent_orders.split()[1]
+        if current_order.isalpha():
+            enemy_moves.append(current_order)
+
+
+    # Track enemy:
+
+    path_cells = []
+    for cell in cells:
+        if cell.get("enemy_pos") == True:
+            path_cell = {
+                "cell_id":          cell.get("cell_id"),
+                "coords":           cell.get("coords"),
+                "enemy_pos":        True,
+                "no_go":            False
+            }
+            path_cells.append(path_cell)
+
+    path = []
+
+    # for move in enemy_moves:
+    if len(opponent_orders.split()) > 1 and opponent_orders.split()[1].isalpha():
+        move = opponent_orders.split()[1]
+        for path_cell in path_cells:
+            if path_cell.get("enemy_pos") == True:
+
+                [Cx, Cy] = path_cell.get("coords")
+                Nx, Ny = get_next(move, Cx, Cy)
+                Px, Py = get_prev(move, Cx, Cy)
+
+                shifted_path_cell = {
+                    "cell_id":          get_cell_id(Ny, Nx),
+                    "coords":           [Nx, Ny],
+                    "enemy_pos":        True,
+                    "no_go":            True
+                }
+
+                for cell in cells:
+                    if [Nx, Ny] == cell.get("coords") and cell.get("no_go") == True:
+                        shifted_path_cell.update(enemy_pos = False)
+
+                path_cells.append(shifted_path_cell)
+
+
+
+    for path_cell in path_cells:
+        for cell in cells:
+            if cell.get("cell_id") == path_cell.get("cell_id"):
+                if path_cell.get("enemy_pos") == True:
+                    cell.update(enemy_pos = True)
+                elif path_cell.get("enemy_pos") == False:
+                    cell.update(enemy_pos = False)
+
+
+
+    # Check for enemy surfacing:
+
+    if "SURFACE" in opponent_orders.split():
+        surface_sector = int(opponent_orders.split()[1])
+
+        for cell in cells:
+            if cell.get("sector") == surface_sector and cell.get("no_go") == False:
+                cell.update(enemy_pos = True)
+                enemy_moves = []
+            else:
+                cell.update(enemy_pos = False)
+
+
+    # Targeting:
+
+    if torpedo_cooldown == 0:
+        for cell in cells:
+            if cell.get("enemy_pos") == True:
+                [Ex, Ey] = cell.get("coords")
+                fire_arc = firing_range(x, y, Ex, Ey)
+                prob  = get_prob()
+
+                if fire_arc <= 5 and prob > 80:
+                    if fire_arc <= 1 and my_life > opp_life:
+                        print("NOPE! FIRE ARC:", fire_arc, file=sys.stderr)
+                    else:
+                        fire = " | TORPEDO " + str(Ex) + " " + str(Ey)
+                else:
+                    pass
+    else:
+        fire = ""
+
+
+    # Get stats:
+
+    MSG = "| MSG " + format(get_prob(), ".0f") + "%" + " " + str(lyrics)
+
+
+    # Choose heading:
+    
+    scan_range = 0
+
+    valid_moves = []
+    for heading in compass:
+        scan_range <= 3
+        heading, safe_dist = scan_heading(heading, scan_range, x, y)
+        
+        if int(safe_dist) >= 1:
+            valid_moves.append([heading, safe_dist])
+
+    # Path Finding and Surface logic:
+
+    if len(valid_moves) >= 0:
+        best_moves = [move[0] for move in valid_moves]
+        best_move_values = [move[1] for move in valid_moves]
+        best_move = best_moves[best_move_values.index(max(best_move_values))]
+        best_value = max(best_move_values)
+        best = [best_move, best_value]
+        direction, silence_dist = best
+    else:
+        command = "SURFACE"
+        for cell in cells:
+            cell.update(my_path = False)
+        print("DONT HAVE MOVE, SURFACING!", file=sys.stderr)
+
+
+    # Silent mode:
+
+    if silence_cooldown == 0:
+        if command != "SURFACE":
+            if int(silence_dist) >= 4:
+                silence_dist = 4
+                command = "SILENCE"
+
+            if my_life_second_ago - my_life > 1:
+                print("MAYDAY! MAYDAY! WE'VE BEEN HIT...", file=sys.stderr)
+                if int(silence_dist) >= 0:
+                    command = "SILENCE"
+
+            for square in range(int(silence_dist)):
+                if direction == "N":
+                    x = x
+                    y = y-1
+                elif direction == "S":
+                    x = x
+                    y = y+1
+                elif direction == "E":
+                    x = x+1
+                    y = y
+                elif direction == "W":
+                    x = x-1
+                    y = y
+
+                for cell in cells:
+                    if [x, y] == cell.get("coords"):
+                        cell.update(my_path = True)
+
+
+    # Build map:
+
+    map = []
+    for cell in cells:
+        land = cell.get("land")
+        my_pos = cell.get("my_pos")
+        my_path = cell.get("my_path")
+        enemy_pos = cell.get("enemy_pos")
+        current_id = cell.get("cell_id")
+        if land == True:
+            map.append("####")
+        elif my_pos == True:
+            map.append("MEEE")
+        elif enemy_pos == True:
+            map.append(">>>>")
+        elif current_id in path:
+            map.append(current_id)
+        else:
+            map.append("....")
+
+    map_chunks = [map[x:x+15] for x in range(0, len(map), 15)]
+
+    for chunk in map_chunks[0:15]:
+        print(*chunk, sep='', file=sys.stderr)
+        print(*chunk, sep='', file=sys.stderr)
+
+
+    # Format output:
+
+    if command == "SILENCE":
+        output = str(command) + " " + str(direction) + " " + str(silence_dist) + " " + str(MSG)
+        print(output)
+    else:
+        output = str(command) + " " + str(direction) + " " + str(charge) + " " + str(MSG)
+        print(output)
+
+
+    # Must be here ¯\_(ツ)_/¯
+
+    my_life_second_ago = my_life
